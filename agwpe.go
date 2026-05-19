@@ -26,7 +26,7 @@ func (f *Frame) Serialize() []byte {
 	// Ignore reserved byte 7
 	copy(buf[8:18], f.CallFrom[:])
 	copy(buf[18:28], f.CallTo[:])
-	binary.BigEndian.PutUint32(buf[28:32], f.DataLen)
+	binary.LittleEndian.PutUint32(buf[28:32], f.DataLen)
 	copy(buf[32:36], f.User[:])
 
 	return buf
