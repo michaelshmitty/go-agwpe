@@ -1,6 +1,7 @@
 package agwpe
 
 import (
+	"net"
 	"testing"
 	"time"
 )
@@ -30,10 +31,17 @@ func TestNewPacketEngine(t *testing.T) {
 	}
 }
 
-func TestNewPacketEngine_Connect(t *testing.T) {
+func TestPacketEngine_Connect(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	serverAddr := listener.Addr().String()
+
 	// Successful connect
-	engine, _ := NewPacketEngine("localhost:1234")
-	err := engine.Connect()
+	engine, _ := NewPacketEngine(serverAddr)
+	err = engine.Connect()
 	if err != nil {
 		t.Errorf("Did not expect error: %v", err)
 	}
@@ -46,12 +54,19 @@ func TestNewPacketEngine_Connect(t *testing.T) {
 	}
 }
 
-func TestNewPacketEngine_Disconnect(t *testing.T) {
-	engine, _ := NewPacketEngine("localhost:1234")
+func TestPacketEngine_Disconnect(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	serverAddr := listener.Addr().String()
+
+	engine, _ := NewPacketEngine(serverAddr)
 	engine.Connect()
 
 	// Disconnect connected engine
-	err := engine.Disconnect()
+	err = engine.Disconnect()
 	if err != nil {
 		t.Errorf("Did not expect error: %v", err)
 	}
