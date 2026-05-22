@@ -14,11 +14,13 @@ type Config struct {
 type Option func(*Config)
 
 type PacketEngine struct {
-	address string
-	cfg     Config
-	Ready   bool
-	conn    net.Conn
-	mu      sync.Mutex
+	address  string
+	cfg      Config
+	Ready    bool
+	conn     net.Conn
+	mu       sync.Mutex
+	Messages chan []byte
+	version  string
 }
 
 func WithTimeout(d time.Duration) Option {
@@ -27,7 +29,7 @@ func WithTimeout(d time.Duration) Option {
 	}
 }
 
-func NewPacketEngine(address string, opts ...Option) (*PacketEngine, error) {
+func NewPacketEngine(address string, opts ...Option) *PacketEngine {
 	defaultCfg := Config{
 		Timeout: 5 * time.Second,
 	}
@@ -36,11 +38,14 @@ func NewPacketEngine(address string, opts ...Option) (*PacketEngine, error) {
 		opt(&defaultCfg)
 	}
 
-	return &PacketEngine{
-		address: address,
-		cfg:     defaultCfg,
-		Ready:   false,
-	}, nil
+	pe := PacketEngine{
+		address:  address,
+		cfg:      defaultCfg,
+		Ready:    false,
+		Messages: make(chan []byte),
+	}
+
+	return &pe
 }
 
 func (pe *PacketEngine) Connect() error {
@@ -50,6 +55,7 @@ func (pe *PacketEngine) Connect() error {
 	}
 	pe.conn = conn
 	fmt.Println("Connected to", pe.address)
+	go pe.receiveLoop()
 
 	return nil
 }
@@ -63,4 +69,38 @@ func (pe *PacketEngine) Disconnect() error {
 	fmt.Println("Disonnected from", pe.address)
 
 	return nil
+}
+
+func (pe *PacketEngine) Send(data []byte) error {
+	_, err := pe.conn.Write(data)
+
+	return err
+}
+
+func (pe *PacketEngine) receiveLoop() {
+	defer close(pe.Messages)
+
+	for {
+		buf := make([]byte, 1024)
+		n, err := pe.conn.Read(buf)
+		if err != nil {
+			// FIXME: handle error
+			panic(err)
+		}
+
+		data := buf[:n]
+
+		pe.Messages <- data
+	}
+}
+
+func (pe *PacketEngine) Version() string {
+	if pe.conn == nil {
+		return ""
+	}
+	if pe.version != "" {
+		return pe.version
+	}
+
+	return fmt.Sprintf("%d.%d")
 }
